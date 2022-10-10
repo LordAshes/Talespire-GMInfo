@@ -76,8 +76,6 @@ namespace LordAshes
             return true;
         }
 
-        private Stopwatch s = new Stopwatch();
-        
         /// <summary>
         /// Function for determining if view mode has been toggled and, if so, activating or deactivating Character View mode.
         /// This function is called periodically by TaleSpire.
