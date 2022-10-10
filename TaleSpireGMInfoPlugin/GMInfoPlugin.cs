@@ -76,7 +76,7 @@ namespace LordAshes
             CreatureGuid.TryParse(creatureTargetedFromRadial.ToString(), out radialCreadureId);
             return true;
         }
-
+        
         /// <summary>
         /// Function for determining if view mode has been toggled and, if so, activating or deactivating Character View mode.
         /// This function is called periodically by TaleSpire.
@@ -92,6 +92,7 @@ namespace LordAshes
 
                 if (LocalClient.IsInGmMode)
                 {
+                    TrackedTexts.RemoveAll(c => c== null);
                     var creaturePos = new NativeArray<Vector3>(TrackedTexts.Count, Allocator.Persistent);
                     var blockRot = new NativeArray<Quaternion>(TrackedTexts.Count, Allocator.Persistent);
 
@@ -106,7 +107,7 @@ namespace LordAshes
                     };
 
                     // Schedule and complete job on separate threads
-                    JobHandle handle = job.Schedule(creaturePos.Length, 1);
+                    var handle = job.Schedule(creaturePos.Length, 1);
                     handle.Complete();
 
                     for (int i = 0; i < blockRot.Length; i++)

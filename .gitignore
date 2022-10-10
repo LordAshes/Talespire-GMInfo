@@ -4,3 +4,5 @@
 
 /.vs
 /TaleSpireGMInfoPlugin/obj/Debug
+/TaleSpireGMInfoPlugin/bin/Debug
+/packages/Newtonsoft.Json.13.0.1

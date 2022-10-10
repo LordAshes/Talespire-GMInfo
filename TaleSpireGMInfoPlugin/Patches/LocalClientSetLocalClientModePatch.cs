@@ -17,14 +17,4 @@ namespace GMInfoPlugin.Patches
                 TrackedTexts[index].GetComponent<TextMeshPro>().enabled = enabled;
         }
     }
-
-    [HarmonyPatch(typeof(CreaturePresenter), "OnCreatureDeleted")]
-    internal sealed class CreaturePresenterOnCreatureDeleted
-    {
-        public static void Postfix()
-        {
-            LocalClientSetLocalClientModePatch.TrackedTexts.RemoveAll(null);
-        }
-    }
-
 }
