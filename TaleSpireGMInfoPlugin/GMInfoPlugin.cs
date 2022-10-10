@@ -1,27 +1,29 @@
 ﻿using UnityEngine;
-using UnityEngine.Rendering.PostProcessing;
 using BepInEx;
 using Bounce.Unmanaged;
-using System.Linq;
 using TMPro;
-using UnityEngine.UI;
 using System;
 using System.Collections.Generic;
 using BepInEx.Configuration;
 using Newtonsoft.Json;
+using GMInfoPlugin.Jobs;
+using Unity.Collections;
+using Unity.Jobs;
+using static GMInfoPlugin.Patches.LocalClientSetLocalClientModePatch;
 
 namespace LordAshes
 {
     [BepInPlugin(Guid, Name, Version)]
     [BepInDependency(RadialUI.RadialUIPlugin.Guid)]
-    [BepInDependency(LordAshes.FileAccessPlugin.Guid)]
+    [BepInDependency(FileAccessPlugin.Guid)]
+    [BepInDependency(StatMessaging.Guid)]
     
     public class GMInfoPlugin : BaseUnityPlugin
     {
         // Plugin info
         public const string Name = "GM Info Plug-In";
         public const string Guid = "org.lordashes.plugins.gminfo";
-        public const string Version = "2.1.0.0";
+        public const string Version = "2.2.0.0";
 
         // Configuration
         private ConfigEntry<KeyboardShortcut> triggerKey { get; set; }
@@ -88,21 +90,31 @@ namespace LordAshes
                     SetRequest(LocalClient.SelectedCreatureId);
                 }
 
-                foreach (CreatureBoardAsset asset in CreaturePresenter.AllCreatureAssets)
+                if (LocalClient.IsInGmMode)
                 {
-                    try
-                    {
-                        GameObject creatureBlock = GameObject.Find(asset.CreatureId + ".GMInfoBlock");
-                        if (creatureBlock != null)
-                        {
-                            creatureBlock.transform.rotation = Quaternion.LookRotation(creatureBlock.transform.position - Camera.main.transform.position);
-                            TextMeshPro creatureStateText = creatureBlock.GetComponent<TextMeshPro>();
-                            creatureStateText.enabled = LocalClient.IsInGmMode;
-                        }
-                    }
-                    catch (Exception) { }
-                }
+                    var creaturePos = new NativeArray<Vector3>(TrackedTexts.Count, Allocator.Persistent);
+                    var blockRot = new NativeArray<Quaternion>(TrackedTexts.Count, Allocator.Persistent);
 
+                    for (var i = 0; i < creaturePos.Length; i++)
+                        creaturePos[i] = TrackedTexts[i].transform.position;
+
+                    var job = new TextRotationJob
+                    {
+                        CreaturePositions = creaturePos,
+                        BlockRotation = blockRot,
+                        CameraPosition = Camera.main.transform.position
+                    };
+
+                    // Schedule and complete job on separate threads
+                    JobHandle handle = job.Schedule(creaturePos.Length, 1);
+                    handle.Complete();
+
+                    for (int i = 0; i < blockRot.Length; i++)
+                        TrackedTexts[i].transform.rotation = blockRot[i];
+
+                    creaturePos.Dispose();
+                    blockRot.Dispose();
+                }
 
                 while (backlogChangeQueue.Count > 0)
                 {
@@ -176,7 +188,9 @@ namespace LordAshes
 
                                 case StatMessaging.ChangeType.removed:
                                     Debug.Log("Removing States Block for creature '" + change.cid + "'");
-                                    GameObject.Destroy(GameObject.Find(asset.CreatureId + ".GMInfoBlock"));
+                                    GameObject creatureBlockToBeDeleted = GameObject.Find(asset.CreatureId + ".GMInfoBlock");
+                                    TrackedTexts.Remove(creatureBlockToBeDeleted);
+                                    GameObject.Destroy(creatureBlockToBeDeleted);
                                     break;
                             }
                         }
@@ -214,6 +228,8 @@ namespace LordAshes
             creatureStateText.fontSize = 1;
             creatureStateText.fontWeight = FontWeight.Bold;
             creatureStateText.isTextObjectScaleStatic = true;
+
+            TrackedTexts.Add(creatureBlock);
         }
 
         private void populateCreatureStateText(TextMeshPro creatureStateText, StatMessaging.Change change, CreatureBoardAsset asset)
