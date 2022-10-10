@@ -6,6 +6,7 @@ or on props that are hidden to provide the GM with notes (visible all the time).
 
 ## Change Log
 ```
+2.2.0: Optimized Lookup for GM States Text
 2.1.0: Fix for Cyberpunk update
 2.0.0: Fix for BR HF Integration update
 1.0.0: Initial release
