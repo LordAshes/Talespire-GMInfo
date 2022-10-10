@@ -4,12 +4,11 @@ using Bounce.Unmanaged;
 using TMPro;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using BepInEx.Configuration;
 using Newtonsoft.Json;
-using GMInfoPlugin.Jobs;
-using Unity.Collections;
-using Unity.Jobs;
 using static GMInfoPlugin.Patches.LocalClientSetLocalClientModePatch;
+using Debug = UnityEngine.Debug;
 
 namespace LordAshes
 {
@@ -46,7 +45,7 @@ namespace LordAshes
         void Awake()
         {
             UnityEngine.Debug.Log("Lord Ashes GM Info Plugin Active.");
-
+            
             triggerKey = Config.Bind("Hotkeys", "States Activation", new KeyboardShortcut(KeyCode.S, KeyCode.LeftControl));
             baseColor = Config.Bind("Appearance", "Base Text Color", UnityEngine.Color.black);
 
@@ -76,6 +75,8 @@ namespace LordAshes
             CreatureGuid.TryParse(creatureTargetedFromRadial.ToString(), out radialCreadureId);
             return true;
         }
+
+        private Stopwatch s = new Stopwatch();
         
         /// <summary>
         /// Function for determining if view mode has been toggled and, if so, activating or deactivating Character View mode.
@@ -92,29 +93,9 @@ namespace LordAshes
 
                 if (LocalClient.IsInGmMode)
                 {
-                    TrackedTexts.RemoveAll(c => c== null);
-                    var creaturePos = new NativeArray<Vector3>(TrackedTexts.Count, Allocator.Persistent);
-                    var blockRot = new NativeArray<Quaternion>(TrackedTexts.Count, Allocator.Persistent);
-
-                    for (var i = 0; i < creaturePos.Length; i++)
-                        creaturePos[i] = TrackedTexts[i].transform.position;
-
-                    var job = new TextRotationJob
-                    {
-                        CreaturePositions = creaturePos,
-                        BlockRotation = blockRot,
-                        CameraPosition = Camera.main.transform.position
-                    };
-
-                    // Schedule and complete job on separate threads
-                    var handle = job.Schedule(creaturePos.Length, 1);
-                    handle.Complete();
-
-                    for (int i = 0; i < blockRot.Length; i++)
-                        TrackedTexts[i].transform.rotation = blockRot[i];
-
-                    creaturePos.Dispose();
-                    blockRot.Dispose();
+                    TrackedTexts.RemoveAll(c => c == null);
+                    for (var i = 0; i < TrackedTexts.Count; i++)
+                        TrackedTexts[i].transform.rotation = Quaternion.LookRotation(TrackedTexts[i].transform.position - Camera.main.transform.position);
                 }
 
                 while (backlogChangeQueue.Count > 0)
